@@ -123,9 +123,6 @@ def report(pass_s: float | None = None, device: str | None = None) -> list[str]:
     nvidia = any("nvidia" in g.lower() for g in gpus) or shutil.which("nvidia-smi")
     if device == "mlx":
         lines.append("✓ The Apple GPU is used (MLX) - this is the fastest setup on a Mac.")
-    elif sys.platform == "darwin":
-        lines.append("→ Speech recognition runs on the processor. On an Apple Silicon Mac, run "
-                     "install-mac.command again (installs MLX for the Apple GPU).")
     elif device == "cuda":
         lines.append("✓ The NVIDIA GPU is used - this is the fastest local setup.")
     elif nvidia:
@@ -135,6 +132,9 @@ def report(pass_s: float | None = None, device: str | None = None) -> list[str]:
             lines.append("→ NVIDIA GPU found but its CUDA libraries are missing: run "
                          "start-windows.bat again (installs them), or pip install -e \".[gpu]\". "
                          "Expect about 10x faster recognition.")
+    elif sys.platform == "darwin":
+        lines.append("→ Speech recognition runs on the processor. On an Apple Silicon Mac, run "
+                     "install-mac.command again (installs MLX for the Apple GPU).")
     elif any("intel" in g.lower() for g in gpus):
         lines.append("→ Only Intel graphics: CTranslate2 cannot use it. An OpenVINO version could "
                      "run several times faster on Intel Arc/Iris Xe/NPU (not built in yet).")
