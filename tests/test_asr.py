@@ -65,3 +65,18 @@ def test_transcribe_filters_hallucinations():
             SimpleNamespace(text=" leise", no_speech_prob=0.95)]
     t.model = SimpleNamespace(transcribe=lambda audio, **kw: (iter(segs), None))
     assert t.transcribe(np.zeros(16000, np.float32)) == "Grüezi mitenand, wie gohts?"
+
+
+def test_audio_files_can_be_decoded(tmp_path):
+    """faster-whisper decodes files with PyAV; PyAV 19 broke it (pinned in pyproject)."""
+    import wave
+
+    from faster_whisper import decode_audio
+
+    path = tmp_path / "t.wav"
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(np.zeros(16000, dtype=np.int16).tobytes())
+    assert len(decode_audio(str(path), sampling_rate=16000)) == 16000

@@ -13,6 +13,7 @@ keywords = ["swiss german", "schweizerdeutsch", "speech recognition", "whisper",
 dependencies = [
     "faster-whisper>=1.1",  # audio decoding, and recognition on the processor (fallback)
     "numpy>=1.24",
+    "av>=11,<19",  # PyAV 19 dropped an option faster-whisper 1.2.1 uses: audio files fail to decode
     "soundcard>=0.4.4",  # microphone / BlackHole input
     "yt-dlp>=2024.1.1",
     "keyring>=24",
