@@ -1,0 +1,45 @@
+name: Mac
+
+# Runs install-mac.command on an Apple Silicon Mac (Ollama and the app start skipped),
+# builds the system-audio helper, runs the tests, then the real speech models on speech
+# made with macOS text-to-speech - so a broken install or model is caught before a user
+# sees it.
+on:
+  push:
+    branches: [main, "mac-*"]
+  workflow_dispatch:
+
+concurrency:
+  group: mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      SWISS_SETUP_CI: "1"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run install-mac.command
+        run: ./install-mac.command
+
+      - name: Check the installation
+        run: |
+          set -e
+          test -x bin/audiotap
+          bin/audiotap --version
+          test -x "$HOME/Applications/Swiss RU-DE.app/Contents/MacOS/swiss-ru-de"
+          plutil -lint "$HOME/Applications/Swiss RU-DE.app/Contents/Info.plist"
+          .venv/bin/python -c "import mlx.core as mx, mlx_whisper; print('MLX', mx.__version__, mx.default_device())"
+          .venv/bin/swiss-ru-de --version
+
+      - name: Test suite
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          uv pip install -p .venv/bin/python pytest
+          .venv/bin/python -m pytest -q -p no:cacheprovider
+
+      - name: Real speech models (MLX and CPU)
+        run: .venv/bin/python tools/ci_speech_test.py

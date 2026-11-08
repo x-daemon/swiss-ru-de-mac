@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swiss-ru-de-mac"
+version = "1.0.0"
+description = "Swiss German speech (Mac system audio, Teams, YouTube) to Russian or German text - fast on Apple Silicon"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+keywords = ["swiss german", "schweizerdeutsch", "speech recognition", "whisper", "mlx", "apple silicon", "translation", "russian"]
+dependencies = [
+    "faster-whisper>=1.1",  # audio decoding, and recognition on the processor (fallback)
+    "numpy>=1.24",
+    "soundcard>=0.4.4",  # microphone / BlackHole input
+    "yt-dlp>=2024.1.1",
+    "keyring>=24",
+]
+
+[project.optional-dependencies]
+# Apple Silicon: Whisper on the Apple GPU
+mac = [
+    "mlx>=0.25; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mlx-whisper>=0.4.2; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+claude = ["anthropic>=2.6"]
+deepl = ["deepl>=1.20"]
+azure = ["azure-cognitiveservices-speech>=1.40"]
+llm = ["openai>=2.0"]  # ChatGPT, Gemini, Grok and local AI (Ollama, LM Studio)
+offline = ["transformers>=4.40", "sentencepiece>=0.2", "torch>=2.1"]
+all = ["swiss-ru-de-mac[mac,claude,deepl,llm,offline]"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+swiss-ru-de = "swiss_ru_de.cli:main"
+
+[project.gui-scripts]
+swiss-ru-de-gui = "swiss_ru_de.gui:main"
+
+[tool.setuptools]
+packages = ["swiss_ru_de"]
+
+[tool.setuptools.package-data]
+swiss_ru_de = ["icon.png", "icon.ico"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
