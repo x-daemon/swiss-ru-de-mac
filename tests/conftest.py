@@ -27,3 +27,14 @@ def fake_keyring(monkeypatch):
     for var in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "DEEPL_AUTH_KEY"):
         monkeypatch.delenv(var, raising=False)
     return store
+
+
+@pytest.fixture(autouse=True)
+def no_real_models_or_audio(monkeypatch):
+    """On a Mac, never download/run the real MLX models or start the real system-audio
+    helper in unit tests (tests that need them patch these again themselves)."""
+    from swiss_ru_de import mac_audio, mlx_asr
+
+    monkeypatch.setattr(mlx_asr, "mlx_available", lambda: False)
+    monkeypatch.setattr(mac_audio, "helper_path", lambda: None)
+    monkeypatch.setattr(mac_audio, "blackhole_device", lambda: None)

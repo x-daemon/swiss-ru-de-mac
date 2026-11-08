@@ -38,8 +38,8 @@ jobs:
       - name: Test suite
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          uv pip install -p .venv/bin/python pytest
-          .venv/bin/python -m pytest -q -p no:cacheprovider
+          uv pip install -p .venv/bin/python pytest pytest-timeout
+          .venv/bin/python -m pytest -v -p no:cacheprovider --timeout 300
 
       - name: Real speech models (MLX and CPU)
         run: .venv/bin/python tools/ci_speech_test.py

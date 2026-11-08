@@ -22,6 +22,9 @@ def fakes(monkeypatch):
     monkeypatch.setattr(asr, "Transcriber", make_transcriber)
     sig = np.concatenate([silence(0.3), tone(1.0), silence(1.0), tone(1.0), silence(1.0)])
     monkeypatch.setattr(audio, "SoundcardSource", lambda loopback, device: FakeSource(sig))
+    from swiss_ru_de import mac_audio  # the Mac's system-audio source
+
+    monkeypatch.setattr(mac_audio, "make_source", lambda loopback=True, device=None: FakeSource(sig))
     return created
 
 
