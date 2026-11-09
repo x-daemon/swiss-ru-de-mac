@@ -755,9 +755,9 @@ class SettingsDialog:
         "openai": "gpt-6-luna = fast and cheap, gpt-6-sol / gpt-6-astra = stronger.",
         "gemini": "gemini-3.8-flash = fast, gemini-3.5-flash-lite = cheapest.",
         "grok": "grok-4.7",
-        "local": "gemma3:12b = precise and fast on a Max (about 1-2 s per sentence). "
-                 "gemma3:27b = most precise, needs 48 GB memory or more. gemma3:4b = for "
-                 "16 GB Macs. Install: ollama pull gemma3:12b",
+        "local": "translategemma:12b = Google's translation model, best Russian (Russian "
+                 "only). gemma3:12b also corrects the German. 4b versions for 16 GB Macs. "
+                 "Install: ollama pull translategemma:12b",
     }
 
     def _show_translator(self) -> None:

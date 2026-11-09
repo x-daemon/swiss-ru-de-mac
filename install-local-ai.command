@@ -37,13 +37,18 @@ if ! curl -s http://localhost:11434/api/version >/dev/null; then
     done
 fi
 
-# Model by memory. A Max has 36 GB or more: gemma3:12b is precise and still fast (about
-# 1-2 s per sentence); gemma3:27b (64 GB+) is even more precise but slower.
+# Model by memory (a Max has 36 GB or more).
 MEM_GB=$(( $(sysctl -n hw.memsize) / 1073741824 ))
-MODEL="gemma3:4b"
-[ "$MEM_GB" -ge 24 ] && MODEL="gemma3:12b"
+# TranslateGemma = Google's translation model: better translations than a general model of
+# the same size. From 24 GB (every Max) the 12B version.
+MODEL="translategemma:4b"; FALLBACK="gemma3:4b"
+if [ "$MEM_GB" -ge 24 ]; then MODEL="translategemma:12b"; FALLBACK="gemma3:12b"; fi
 echo "=== Memory: $MEM_GB GB - downloading $MODEL (once) ..."
-"$OLLAMA" pull "$MODEL" || { echo "Model download failed."; done_ 1; }
+if ! "$OLLAMA" pull "$MODEL"; then
+    echo "$MODEL is not available - using $FALLBACK instead."
+    MODEL="$FALLBACK"
+    "$OLLAMA" pull "$MODEL" || { echo "Model download failed."; done_ 1; }
+fi
 
 if [ -x .venv/bin/python ]; then
     .venv/bin/python -c "from swiss_ru_de.settings import load_settings, save_settings; s = load_settings(); s.translator = 'local'; s.local_model = '$MODEL'; s.local_url = 'http://localhost:11434/v1'; save_settings(s); print('Settings: Translator = Local AI, model = $MODEL')"

@@ -45,7 +45,7 @@ SWISS_TERMS = [
     (r"nüsslisalat", "Feldsalat"),
     (r"peperonis?", "Paprika"),
     (r"rahm", "Sahne"),
-    (r"chäs", "Käse"),
+    (r"chäs|käs", "Käse"),
     (r"poulet", "Hähnchen"),
     (r"glace", "Eis"),
     (r"zältli", "Bonbons"),
@@ -75,6 +75,30 @@ SWISS_TERMS = [
     (r"merci vilmal|merci viel ?mal", "vielen Dank"),
     (r"merci", "danke"),
     (r"zäme", "zusammen"),
+    # dialect words the speech model sometimes leaves in its Standard German; translation
+    # models (TranslateGemma, DeepL, offline) know no Swiss German
+    (r"nöd|nid", "nicht"),
+    (r"nüt|nüüt|nüd|nüüd|nünt", "nichts"),
+    (r"öppis|öppes", "etwas"),
+    (r"öpper", "jemand"),
+    (r"hüt", "heute"),
+    (r"gsi", "gewesen"),
+    (r"gha", "gehabt"),
+    (r"isch", "ist"),
+    (r"bisch", "bist"),
+    (r"hesch", "hast"),
+    (r"händ|hend", "haben"),
+    (r"chönnt", "könnte"),
+    (r"chönd|chönnd", "können"),
+    (r"chasch", "kannst"),
+    (r"chunsch", "kommst"),
+    (r"chunt|chunnt", "kommt"),
+    (r"wotsch", "willst"),
+    (r"siin", "sein"),
+    (r"chli|chlii", "ein bisschen"),
+    (r"lueg", "schau"),
+    (r"luege", "schauen"),
+    (r"gäll", "nicht wahr"),
     # small translation models get these wrong ("Viertelstunde" -> "14 minutes")
     (r"(?:eine |ne )?drei ?viertel ?stunden?", "45 Minuten"),
     (r"(?:eine |ne )?viertel ?stunden?", "15 Minuten"),
@@ -362,10 +386,12 @@ PROVIDERS = {
     # Runs on this PC (GPU): Ollama or LM Studio serve an OpenAI-compatible API, no key.
     "local": dict(label="Local AI (Ollama / LM Studio)", short="Local AI",
                   base_url="http://localhost:11434/v1",
-                  # Mac with an M-series Max: plenty of unified memory, so the larger models
-                  models=["gemma3:12b", "gemma3:27b", "qwen3:14b", "gemma3:4b", "qwen3:8b",
-                          "translategemma:12b", "translategemma:4b"],
-                  reasoning_effort=None, where="ollama.com, then: ollama pull gemma3:12b"),
+                  # TranslateGemma: Google's translation model - much better translations than
+                  # a general model of the same size (but it does not correct the German).
+                  # Mac with an M-series Max: plenty of unified memory, so the 12B versions.
+                  models=["translategemma:12b", "gemma3:12b", "translategemma:4b", "gemma3:27b",
+                          "gemma3:4b", "qwen3:14b", "qwen3:8b"],
+                  reasoning_effort=None, where="ollama.com, then: ollama pull translategemma:12b"),
 }
 LOCAL_SERVERS = {"Ollama": "http://localhost:11434/v1", "LM Studio": "http://localhost:1234/v1"}
 _THINK = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -463,6 +489,8 @@ _LABEL = re.compile(r"^\s*\**\s*(?:перевод|translation|russian|русск
                     re.IGNORECASE)
 _LOOP = re.compile(r"(\S.{0,11}?)(?:\s*\1){5,}", re.DOTALL)
 _CYRILLIC = re.compile(r"[\u0400-\u04ff]")
+_NUMBER = re.compile(r"^\s*\d{1,2}\s*[.)]\s+")
+_ALTERNATIVES = re.compile(r"([.!?…])\s+/\s+[^/]*$")
 
 
 def clean_translation(text: str | None, source: str = "") -> str:
@@ -473,6 +501,10 @@ def clean_translation(text: str | None, source: str = "") -> str:
     if _CYRILLIC.search(text):
         text = _LATIN_NOTE.sub("", text)
     text = _LABEL.sub("", text.strip())
+    if not re.match(r"\s*\d", source or ""):
+        text = _NUMBER.sub("", text)  # "1. Что это?" - numbering copied from the instructions
+    if _CYRILLIC.search(text):  # "Что случилось? / Что такое?" - alternatives: keep the first
+        text = _ALTERNATIVES.sub(r"\1", text)
     # a repeated word once; repeated junk without letters ("0} 0} 0}") not at all
     text = _LOOP.sub(lambda m: m.group(1) if re.search(r"[^\W\d_]", m.group(1)) else "", text)
     text = " ".join(text.split()).strip("\"'\u201c\u201d\u00ab\u00bb{} ")
@@ -538,7 +570,7 @@ class OpenAICompatibleTranslator(Translator):
             # randomness (Gemma's default is 1.0), and keep the model loaded in the graphics
             # card between sentences (Ollama unloads it after 5 idle minutes by default).
             self.options["reasoning_effort"] = "none"
-            self.options["temperature"] = 0.2
+            self.options["temperature"] = 0.0  # the most likely translation, no invented words
             if ":11434" in self.base_url:
                 self.options["extra_body"] = {"keep_alive": "30m"}
 

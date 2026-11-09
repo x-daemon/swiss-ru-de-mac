@@ -8,8 +8,8 @@ This edition is built for **Apple Silicon**, especially the **M-series Max** chi
 * **Speech recognition runs on the Apple GPU** with Apple's [MLX](https://github.com/ml-explore/mlx).
   This uses a Swiss German Whisper model (large-v3-turbo, converted for MLX automatically).
 * **Translation runs on the same Mac** with a local AI model through [Ollama](https://ollama.com).
-  A Max has enough memory for `gemma3:12b`, which is much more precise than the small models a
-  typical PC graphics card can hold.
+  A Max has enough memory for `translategemma:12b`, Google's translation model, which is much
+  more precise than the small models a typical PC graphics card can hold.
 * **System audio is recorded directly** with Apple's ScreenCaptureKit. You don't need a virtual
   audio device, and the sound keeps playing normally.
 
@@ -24,8 +24,9 @@ Windows and Linux version: [x-daemon/swiss-ru-de](https://github.com/x-daemon/sw
    2. the app with MLX and all translators;
    3. `audiotap`, the system-audio helper. It is built from `mac/audiotap.swift` and needs
       Apple's free command line tools; the installer offers to install them;
-   4. **Ollama** and a translation model sized to the memory: `gemma3:12b` from 24 GB, else
-      `gemma3:4b`. The settings are switched to *Local AI*;
+   4. **Ollama** and a translation model sized to the memory: `translategemma:12b` (Google's
+      translation model) from 24 GB, else `translategemma:4b`. The settings are switched to
+      *Local AI*;
    5. the speech models (about 3 GB), prepared for the Apple GPU;
    6. **Swiss RU-DE** in your *Applications* folder, which is then started.
 3. On the first start, macOS asks to allow **Screen & System Audio Recording** for Swiss
@@ -51,11 +52,11 @@ from Terminal and shows its messages, which is useful when something goes wrong.
 |---|---|---|
 | Speech recognition (Swiss German model) | Apple GPU (MLX) | a fraction of a second |
 | Dialect line (second model) | Apple GPU (MLX) | a fraction of a second |
-| Translation, `gemma3:12b` | Apple GPU (Ollama, Metal) | about 1–2 s |
+| Translation, `translategemma:12b` | Apple GPU (Ollama, Metal) | about 1–2 s |
 
-These are estimates; *Check this PC* shows the real numbers. For the most precise local
-translations, use `gemma3:27b` (`ollama pull gemma3:27b`, then *Settings → Model*). It needs
-48 GB of memory or more and is about twice as slow.
+These are estimates; *Check this PC* shows the real numbers. TranslateGemma only translates.
+To have the German corrected as well (top part = Standard German), use `gemma3:12b`, or
+`gemma3:27b` with 48 GB of memory or more (`ollama pull <name>`, then *Settings → Model*).
 
 ## How it works
 
@@ -91,8 +92,8 @@ translations, use `gemma3:27b` (`ollama pull gemma3:27b`, then *Settings → Mod
   Screen & System Audio Recording*. Then quit and start it again.
 * **"The system-audio helper is not built":** install Apple's command line tools
   (`xcode-select --install`), then run `install-mac.command` again.
-* **Translation slow:** *Check this PC* shows the time per step. Use `gemma3:12b` rather than
-  27b, and close other big apps.
+* **Translation slow:** *Check this PC* shows the time per step. Use a 12B rather than a 27B
+  model, and close other big apps.
 * **Log file:** `~/Library/Logs/swiss-ru-de.log`.
 
 ## Кратко по-русски
@@ -102,7 +103,8 @@ Zoom, YouTube). Сверху диалект, снизу русский пере�
 чипом M Max:
 
 * распознавание речи идёт на графическом процессоре Apple (MLX);
-* перевод делает локальный ИИ `gemma3:12b` прямо на Mac, бесплатно и без облака;
+* перевод делает локальный ИИ `translategemma:12b` (переводческая модель Google) прямо на
+  Mac, бесплатно и без облака;
 * звук записывается напрямую, без виртуальных аудиоустройств.
 
 Установка: распакуйте архив и дважды щёлкните **`install-mac.command`**. Если macOS

@@ -339,3 +339,12 @@ def test_more_time_words():
     n = normalize_swiss_terms
     assert n("Dann geht es, ja, dreiviertel Stunde.") == "Dann geht es, ja, 45 Minuten."
     assert n("eine super Sauce") == "eine toll Sauce"
+
+
+def test_dialect_words_left_by_the_speech_model():
+    n = normalize_swiss_terms
+    assert n("Nüüd. Warum nöd?") == "nichts. Warum nicht?"
+    assert n("Oda chönnt siin. Etwas Käs noch.") == "Oda könnte sein. Etwas Käse noch."
+    assert n("Hesch hüt öppis gha?") == "hast heute etwas gehabt?"
+    assert n("Das isch es Gipfeli.") == "Das ist es Croissant."
+    assert n("Ich gehe nach Ischgl.") == "Ich gehe nach Ischgl."  # whole words only

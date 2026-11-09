@@ -115,7 +115,7 @@ def test_gemini_key_from_google_api_key(monkeypatch):
 
 def test_local_ai_needs_no_key_and_uses_the_local_server():
     t = OpenAICompatibleTranslator("local", base_url="http://localhost:1234/v1")
-    assert t.model == "gemma3:12b" and t.corrects  # nothing installed: the suggested model
+    assert t.model == "translategemma:12b" and not t.corrects  # nothing installed: the suggested model
     assert str(t.client.base_url).startswith("http://localhost:1234/v1")
     assert "extra_body" not in t.options  # keep_alive is for Ollama only
     hub = TranslatorHub("local", local_model="qwen3:14b", local_url="http://127.0.0.1:11434/v1")
@@ -130,7 +130,7 @@ def test_local_errors_explain_what_to_do():
     with pytest.raises(TranslationError, match="Start Ollama"):
         t.process("x")
     t, _ = make_local([LookupError("model not found")])
-    with pytest.raises(TranslationError, match="ollama pull gemma3:12b"):
+    with pytest.raises(TranslationError, match="ollama pull gemma3:4b"):
         t.process("x")
 
 
@@ -148,8 +148,8 @@ def test_thinking_is_ignored_and_translation_models_get_a_plain_prompt():
     assert t.process("Zwei Gipfeli.", target="de") == (None, None)
 
 
-def make_local(answers):
-    t = OpenAICompatibleTranslator("local")
+def make_local(answers, model="gemma3:4b"):
+    t = OpenAICompatibleTranslator("local", model=model)
     t._openai = FAKE_ERRORS
     fake = FakeCompletions(answers)
     t.client = SimpleNamespace(chat=SimpleNamespace(completions=fake))
@@ -160,7 +160,9 @@ def test_local_model_defaults_to_an_installed_one(monkeypatch):
     monkeypatch.setattr(translate, "local_models", lambda url: ["gemma3:4b", "llama3.2:3b"])
     assert OpenAICompatibleTranslator("local").model == "gemma3:4b"
     monkeypatch.setattr(translate, "local_models", lambda url: ["gemma3:4b", "gemma3:12b"])
-    assert OpenAICompatibleTranslator("local").model == "gemma3:12b"  # Mac (Max): the precise one first
+    assert OpenAICompatibleTranslator("local").model == "gemma3:12b"  # Mac (Max): the bigger one
+    monkeypatch.setattr(translate, "local_models", lambda url: ["gemma3:12b", "translategemma:12b"])
+    assert OpenAICompatibleTranslator("local").model == "translategemma:12b"  # best translations
     monkeypatch.setattr(translate, "local_models", lambda url: ["mistral:7b"])
     assert OpenAICompatibleTranslator("local").model == "mistral:7b"
     assert OpenAICompatibleTranslator("local", model="qwen3:14b").model == "qwen3:14b"
@@ -177,7 +179,7 @@ def test_local_requests_are_short_and_fast():
     assert user.endswith("Text: Zwei Croissants bitte")  # Swiss words normalised first
     assert "Zwöi" not in user and "context only" in user  # no second version to translate twice
     assert call["reasoning_effort"] == "none"  # no thinking
-    assert call["temperature"] == 0.2
+    assert call["temperature"] == 0.0
     assert call["extra_body"] == {"keep_alive": "30m"}  # stays in the graphics card
     assert 64 < call["max_tokens"] < 200 and "max_completion_tokens" not in call  # Ollama reads max_tokens
     assert not t.uses_dialect  # the worker does not wait for the dialect line
@@ -215,7 +217,7 @@ def test_local_drops_thinking_option_if_the_model_rejects_it():
     t, fake = make_local([FakeBadRequest('"gemma3:4b" does not support thinking'),
                           '{"german": "Ja.", "russian": "Да."}'])
     assert t.process("Ja") == ("Ja.", "Да.")
-    assert "reasoning_effort" not in fake.calls[1] and fake.calls[1]["temperature"] == 0.2
+    assert "reasoning_effort" not in fake.calls[1] and fake.calls[1]["temperature"] == 0.0
 
 
 def test_cut_off_answer_keeps_the_translation():
@@ -285,3 +287,27 @@ def test_parse_numbered():
     assert p("1. Да.\n2) Нет.\n**3.** Может быть.\n7. лишнее\n2. повтор", 3) == \
         {1: "Да.", 2: "Нет.", 3: "Может быть."}
     assert p("<think>1. x</think>Просто текст", 2) == {}
+
+
+def test_copied_numbering_is_removed():
+    c = translate.clean_translation
+    assert c("1. Что это?", "Was denn?") == "Что это?"
+    assert c("2) Да.", "Ja.") == "Да."
+    assert c("3 минуты.", "3 Minuten.") == "3 минуты."  # a real number stays
+
+
+def test_translategemma_gets_its_prompt_and_no_dialect():
+    t, fake = make_local(["Два круассана и кофе."], model="translategemma:4b")
+    assert t.process("Zwei Gipfeli und ein Kafi.", "Zwöi Gipfeli", ["Grüezi"], correct=False) == \
+        (None, "Два круассана и кофе.")
+    prompt = fake.calls[0]["messages"][0]["content"]
+    assert prompt.startswith("You are a professional German (de) to Russian (ru) translator")
+    assert prompt.endswith("Zwei Croissants und ein Kaffee.") and "Zwöi" not in prompt
+    assert not t.uses_dialect and fake.calls[0]["temperature"] == 0.0
+
+
+def test_offered_alternatives_are_cut():
+    c = translate.clean_translation
+    assert c("Что случилось? / Что такое?", "Was denn?") == "Что случилось?"
+    assert c("Я этого не делаю. Почему? / Зачем?", "x" * 40) == "Я этого не делаю. Почему?"
+    assert c("Счёт 2 / 3 в нашу пользу.", "x" * 20) == "Счёт 2 / 3 в нашу пользу."  # not an alternative
